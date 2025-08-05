@@ -29,8 +29,9 @@ RUN npm install --omit=dev
 # Copy built app from build stage
 COPY --from=build /app/build ./build
 
-# Copy server file
+# Copy server file and services directory
 COPY server.js ./
+COPY --from=build /app/src/services ./src/services
 
 # Expose port
 EXPOSE 3000
