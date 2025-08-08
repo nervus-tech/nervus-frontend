@@ -1,0 +1,77 @@
+name: CD Staging - Frontend
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Service to deploy'
+        required: true
+        default: 'frontend'
+
+jobs:
+  deploy-staging:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Staging VM
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            cd /opt/nervus.tech/nervus-frontend
+            git pull origin develop
+            docker-compose -f docker-compose-staging.yml down || true
+            docker pull ghcr.io/nervus-tech/nervus-frontend:latest
+            docker-compose -f docker-compose-staging.yml up -d
+            sleep 20
+            curl -f http://localhost:8120 || exit 1
+
+      - name: API Gateway Reachability (non-blocking)
+        continue-on-error: true
+        run: |
+          # Frontend usually served directly; this check is informational if proxied
+          curl -f http://${{ secrets.STAGING_HOST }}:8120 || true
+
+      - name: Performance Test
+        run: |
+          sudo apt-get update && sudo apt-get install -y apache2-utils
+          ab -n 200 -c 20 http://${{ secrets.STAGING_HOST }}:8120/ | tee ab_output.txt
+
+      - name: Response Time Threshold Check (non-blocking)
+        continue-on-error: true
+        run: |
+          THRESHOLD_MS=500
+          P95=$(awk '/95%/ {print $2}' ab_output.txt)
+          echo "p95(ms)=" $P95
+          if [ -n "$P95" ] && [ "$(printf '%.0f' "$P95")" -gt "$THRESHOLD_MS" ]; then
+            echo "⚠️ p95 response time ($P95 ms) exceeds threshold ($THRESHOLD_MS ms)."
+          else
+            echo "✅ p95 response time within threshold or not measurable."
+          fi
+          exit 0
+
+      - name: Resource Usage Snapshot (non-blocking)
+        continue-on-error: true
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.STAGING_HOST }}
+          username: ${{ secrets.STAGING_USER }}
+          key: ${{ secrets.STAGING_SSH_KEY }}
+          script: |
+            echo "Container list (grep frontend-staging):"
+            docker ps --format '{{.ID}}\t{{.Names}}\t{{.Status}}' | grep frontend-staging || true
+            echo "docker stats (single snapshot):"
+            docker stats --no-stream --format 'table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}' | grep frontend-staging || true
+
+      - name: Notify Deployment
+        if: success()
+        run: echo "✅ Staging deployment successful for nervus-frontend"
+        
+  # duplicate block removed
