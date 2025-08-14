@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  app:
+    image: ghcr.io/nervus-tech/nervus-frontend:${TAG}
+    environment:
+      - NODE_ENV=production
+      - SERVICE_PORT=3000
+      - SERVICE_NAME=FRONTEND
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 1G
+    networks:
+      - nervus-network

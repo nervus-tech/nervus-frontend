@@ -1,20 +1,19 @@
 version: '3.8'
-
 services:
-  frontend:
-    image: ghcr.io/nervus-tech/nervus-frontend:v1.1.0-staging
+  app:
+    extends:
+      file: docker-compose-frontend-base.yml
+      service: app
     container_name: frontend-staging
     ports:
       - "8120:3000"
     environment:
-      - NODE_ENV=production
       - EUREKA_URL=http://eureka:8761
-      - SERVICE_PORT=3000
-      - SERVICE_NAME=FRONTEND
       - HOST_NAME=frontend-staging
+      - TAG=v1.1.0-staging
     networks:
       - nervus-infrastructure_default
 
 networks:
   nervus-infrastructure_default:
-    external: true 
+    external: true
