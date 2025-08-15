@@ -10,10 +10,9 @@ services:
     environment:
       - EUREKA_URL=http://eureka-local:8761
       - HOST_NAME=frontend-local
-      - TAG=v1.1.0-local
     networks:
-      - nervus-local-network
+      - nervus-network
 
 networks:
-  nervus-local-network:
+  nervus-network:
     external: true

@@ -10,10 +10,9 @@ services:
     environment:
       - EUREKA_URL=http://eureka:8761
       - HOST_NAME=frontend-prod
-      - TAG=v1.1.0-prod
     networks:
-      - nervus-infrastructure_default
+      - nervus-network
 
 networks:
-  nervus-infrastructure_default:
+  nervus-network:
     external: true
